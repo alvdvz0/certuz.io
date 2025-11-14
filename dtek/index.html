@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ДТЕК | Графік відключень + Змейка (WASD)</title>
+
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #f4f4f4;
+            color: #212529;
+            line-height: 1.5;
+        }
+
+        /* === ШАПКА (FIXED) === */
+        .header {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: #fff; border-bottom: 1px solid #dee2e6;
+            z-index: 1000; padding: 12px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .header__logo img { height: 40px; }
+
+        /* === КОНТЕНТ === */
+        .main { margin-top: 70px; padding: 20px; max-width: 1200px; margin: auto; }
+        .info-text {
+            background: #e2e3e5; padding: 16px; border-radius: 6px;
+            margin-bottom: 24px; font-size: 14px; line-height: 1.6;
+        }
+
+        /* === ТАБЛИЦЯ === */
+        .discon-schedule-table table {
+            border-collapse: collapse; table-layout: fixed; font-size: 13px;
+            width: 100%; margin: 0 auto; background: #fff;
+        }
+        .head-time-cell {
+            width: 81px; height: 54px; background: #fff; border: 1px solid #dee2e6;
+            text-align: center; vertical-align: middle; font-weight: 600; color: #495057;
+        }
+        .day-cell {
+            width: 81px; height: 37px; background: #fff; border: 1px solid #dee2e6;
+            text-align: right; padding-right: 8px; font-weight: 600; color: #212529;
+        }
+        .current-day .day-cell { background: #d4edda; color: #155724; }
+        .yesterday-row .day-cell { background: #f8d7da; color: #721c24; }
+        .hour-header {
+            width: 29px; height: 54px; background: #fff; border: 1px solid #dee2e6;
+            writing-mode: vertical-rl; transform: rotate(180deg); text-align: center;
+            font-weight: 600; color: #495057; white-space: nowrap; padding: 8px 0;
+        }
+        .game-cell {
+            width: 29px; height: 37px; background: #fff; border: 1px solid #dee2e6;
+            background-size: 20px; background-repeat: no-repeat; background-position: center;
+        }
+        .cell-snake { background-image: url('https://www.dtek-kem.com.ua/img/icons/elec-maybe.svg'); }
+        .cell-food { background-image: url('https://www.dtek-kem.com.ua/img/icon-energy-line.png'); background-size: 18px; }
+
+        /* === ЛЕГЕНДА === */
+        #legendarium-table {
+            display: flex; justify-content: center; flex-wrap: wrap;
+            gap: 20px; margin: 20px 0; font-size: 13px; color: #495057;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .legend-item > div {
+            width: 20px; height: 20px; border: 1px solid #dee2e6;
+            background-size: 16px; background-position: center; background-repeat: no-repeat;
+        }
+        .legend-light { background: #fff; }
+        .legend-snake { background-image: url('https://www.dtek-kem.com.ua/img/icons/elec-maybe.svg'); }
+        .legend-food { background-image: url('https://www.dtek-kem.com.ua/img/icon-energy-line.png'); }
+
+        /* === ІНФО === */
+        .discon-schedule-alert {
+            margin: 20px 0; padding: 12px; background: #e2e3e5;
+            border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;
+            font-size: 14px; color: #495057;
+        }
+        .discon-info-icon svg { width: 24px; height: 24px; }
+
+        /* === КНОПКИ === */
+        .controls { text-align: center; margin: 30px 0; }
+        .controls button {
+            padding: 8px 16px; margin: 0 5px; font-size: 14px;
+            cursor: pointer; border: 1px solid #ced4da; border-radius: 4px; background: #fff;
+        }
+        .controls button:disabled { opacity: 0.6; cursor: default; }
+        #score { font-size: 18px; font-weight: 600; margin-top: 10px; color: #212529; }
+
+        /* === ФУТЕР === */
+        .footer__top { background: #2c3e50; color: #ecf0f1; padding: 40px 20px; margin-top: 60px; }
+        .footer__container { max-width: 1200px; margin: auto; display: flex; flex-wrap: wrap; gap: 40px; }
+        .footer__nav { flex: 2; display: flex; gap: 40px; }
+        .b-footer { flex: 1; }
+        .b-footer__title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #fff; }
+        .b-footer__list { list-style: none; }
+        .b-footer__item { margin-bottom: 8px; }
+        .b-footer__item a { color: #bdc3c7; text-decoration: none; font-size: 14px; }
+        .b-footer__item a:hover { color: #fff; text-decoration: underline; }
+        .b-footer__item--call { font-weight: 600; color: #fff; }
+        .b-footer__link { color: #1abc9c; }
+        .footer__col { flex: 1; }
+        .footer__social { display: flex; gap: 12px; margin-top: 16px; }
+        .social__link svg { width: 36px; height: 36px; }
+    </style>
+</head>
+<body>
+
+<!-- ШАПКА -->
+<header class="header">
+    <a href="https://biz.ok.dtek-kem.com.ua/" target="_blank">
+        <img src="https://www.dtek-kem.com.ua/img/logo2025.svg" alt="ДТЕК">
+    </a>
+</header>
+
+<main class="main">
+
+    <!-- ТЕКСТ -->
+    <div class="info-text">
+        <p><strong>Оновлено підхід до формування графіків відключень.</strong></p>
+        <p>Графік відключень розбитий на 30-хвилинні інтервали.</p>
+        <p>Кожна черга розділена на дві підчерги: 1.1 та 1.2, 2.1 та 2.2 і т.д.</p>
+        <p>Мінімум 3,5 години між можливими відключеннями при відсутності аварій у мережі.</p>
+        <p>Актуальну інформацію також можна отримати у чат-боті <a href="viber://pa?chatURI=dtekkyivskielectromerezhi" style="color:#7360F2;">Viber</a> і <a href="https://t.me/DTEKKyivskielectromerezhibot" style="color:#0088cc;">Telegram</a>.</p>
+    </div>
+
+    <!-- ІНФО -->
+    <div class="discon-schedule-alert">
+        <div class="discon-info-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="#5A636B" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 16H12.01V16.01H12V16Z" stroke="#5A636B" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M12 12V8" stroke="#5A636B" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <div class="discon-info-text">
+            За цією адресою будинок має складну схему підключення (два та більше джерел живлення). 
+            В таких будинках різні квартири підпадають у різні групи графіків відключень. 
+            Тому, на жаль, по ним зараз немає можливості давати прогнозований графік стабілізаційних відключень. 
+            Ми вже працюємо над вирішенням цього питання.
+        </div>
+    </div>
+
+    <!-- ТАБЛИЦЯ -->
+    <div class="discon-schedule-interact">
+        <div class="discon-schedule-table active" id="gameTable"></div>
+
+        <!-- ЛЕГЕНДА С ТЕКСТУРАМИ -->
+        <div id="legendarium-table" class="active">
+            <div class="legend-item">
+                <div class="legend-light"></div>
+                <span>Світло є</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-snake"></div>
+                <span>Змейка (немає світла)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-food"></div>
+                <span>Їжа (енергія)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- КНОПКИ + УПРАВЛЕНИЕ -->
+    <div class="controls">
+        <button id="startBtn">Почати гру</button>
+        <button id="pauseBtn" disabled>Пауза</button>
+        <button id="resetBtn">Скинути</button>
+        <div id="score">Рахунок: 0</div>
+        <p style="margin-top: 8px; font-size: 12px; color: #6c757d;">Управління: <strong>WASD</strong></p>
+    </div>
+
+</main>
+
+<!-- ФУТЕР -->
+<footer class="footer__top">
+    <div class="footer__container">
+        <nav class="footer__nav">
+            <div class="b-footer">
+                <h2 class="b-footer__title">Услуги</h2>
+                <ul class="b-footer__list">
+                    <li class="b-footer__item"><a href="/ru/shutdowns">Отсутствует электроэнергия?</a></li>
+                    <li class="b-footer__item"><a href="/ru/meter">Передать показания счётчика</a></li>
+                    <li class="b-footer__item"><a href="/ru/enter-contract_all">Заключить договор</a></li>
+                    <li class="b-footer__item"><a href="/ru/connections">Приєднання до електромереж</a></li>
+                    <li class="b-footer__item"><a href="/ru/gas-stations">Установка электрозаправок</a></li>
+                    <li class="b-footer__item"><a href="/ru/services">Заказать услугу</a></li>
+                    <li class="b-footer__item"><a href="/ru/electrical_safety">Електробезпека під контролем</a></li>
+                </ul>
+            </div>
+            <div class="b-footer">
+                <h2 class="b-footer__title">Официальная информация</h2>
+                <ul class="b-footer__list">
+                    <li class="b-footer__item"><a href="/ru/shareholders">Інформація для акціонерів та стейкхолдерів</a></li>
+                    <li class="b-footer__item"><a href="/ru/supplier-registry">Реестр поставщиков</a></li>
+                    <li class="b-footer__item"><a href="/ru/normativna-baza">Нормативна база</a></li>
+                    <li class="b-footer__item"><a href="/ru/icc">Центр розгляду скарг</a></li>
+                    <li class="b-footer__item"><a href="/ru/media-centr">Медіа-центр</a></li>
+                    <li class="b-footer__item"><a href="/ru/faq">Частые вопросы</a></li>
+                    <li class="b-footer__item"><a href="/ru/pro-kompaniyu">Про компанію</a></li>
+                </ul>
+            </div>
+        </nav>
+        <div class="footer__col">
+            <div class="b-footer">
+                <h2 class="b-footer__title">Контакты</h2>
+                <div class="b-footer__block">
+                    <div class="b-footer__subtitle">Телефон кол-центра:</div>
+                    <ul class="b-footer__list">
+                        <li class="b-footer__item b-footer__item--call">
+                            Для стационарных: <a href="tel:1588" class="b-footer__link"><strong>1588</strong></a><br>
+                            Юр. лица: <a href="tel:+380442015858" class="b-footer__link"><strong>+38 (044) 201 5858</strong></a><br>
+                            Для мобильных:
+                        </li>
+                        <li class="b-footer__item"><a href="tel:+380442021588" class="b-footer__link"><strong>+38 (044) 202 1588</strong></a></li>
+                        <li class="b-footer__item"><a href="tel:+380672101588" class="b-footer__link"><strong>+38 (067) 210 1588</strong></a></li>
+                        <li class="b-footer__item"><a href="tel:+380502101588" class="b-footer__link"><strong>+38 (050) 210 1588</strong></a></li>
+                        <li class="b-footer__item"><a href="tel:+380732021588" class="b-footer__link"><strong>+38 (073) 202 1588</strong></a></li>
+                        <li class="b-footer__item b-footer__item--desc">Согласно тарифам оператора</li>
+                        <li class="b-footer__item"><a href="tel:0800501588" class="b-footer__link"><strong>0 800 501 588 (безкоштовно)</strong></a></li>
+                    </ul>
+                </div>
+                <div class="b-footer__block">
+                    <div class="b-footer__subtitle">E-mail:</div>
+                    <ul class="b-footer__list">
+                        <li class="b-footer__item">Загальні питання: <a href="mailto:kem@dtek.com" class="b-footer__link">kem@dtek.com</a></li>
+                    </ul>
+                </div>
+                <ul class="footer__social social">
+                    <li class="social__item"><a href="https://www.facebook.com/dtekkem" target="_blank">Facebook</a></li>
+                    <li class="social__item"><a href="https://www.youtube.com/channel/UCz__uoE9w2XkCBohGB5raFg" target="_blank">YouTube</a></li>
+                    <li class="social__item"><a href="https://www.instagram.com/dtekkem" target="_blank">Instagram</a></li>
+                    <li class="social__item"><a href="viber://pa?chatURI=dtekkyivskielectromerezhi">Viber</a></li>
+                    <li class="social__item"><a href="https://t.me/DTEKKyivskielectromerezhibot">Telegram</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const ROWS = 7, COLS = 24;
+    const DAYS = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'];
+    const HOURS = Array.from({length:24},(_,i)=>`${i.toString().padStart(2,'0')}-${(i+1).toString().padStart(2,'0')}`);
+
+    let snake = [], food = null, dir = 'right', nextDir = 'right';
+    let interval = null, running = false, paused = false, score = 0;
+
+    const table = document.getElementById('gameTable');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const scoreEl = document.getElementById('score');
+
+    function createTable() {
+        let html = `<table><thead><tr>
+            <th colspan="2" class="head-time-cell">Часові проміжки</th>`;
+        HOURS.forEach(h => html += `<th class="hour-header">${h}</th>`);
+        html += `</tr></thead><tbody>`;
+
+        const today = new Date().getDay();
+        DAYS.forEach((d, i) => {
+            const isToday = (today === 0 ? 6 : today - 1) === i ? 'current-day' :
+                           (today === 0 ? 5 : today - 2) === i ? 'yesterday-row' : '';
+            html += `<tr class="${isToday}">
+                <td colspan="2" class="day-cell">${d}</td>`;
+            for (let c = 0; c < COLS; c++) html += `<td id="cell-${i}-${c}" class="game-cell"></td>`;
+            html += `</tr>`;
+        });
+        html += `</tbody></table>`;
+        table.innerHTML = html;
+    }
+
+    function render() {
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const cell = document.getElementById(`cell-${r}-${c}`);
+                cell.className = 'game-cell';
+            }
+        }
+        snake.forEach(s => {
+            const cell = document.getElementById(`cell-${s.r}-${s.c}`);
+            if (cell) cell.classList.add('cell-snake');
+        });
+        if (food) {
+            const cell = document.getElementById(`cell-${food.r}-${food.c}`);
+            if (cell) cell.classList.add('cell-food');
+        }
+    }
+
+    function spawnFood() {
+        let r, c;
+        do {
+            r = Math.floor(Math.random() * ROWS);
+            c = Math.floor(Math.random() * COLS);
+        } while (snake.some(s => s.r === r && s.c === c));
+        food = { r, c };
+    }
+
+    function move() {
+        if (!running || paused) return;
+        dir = nextDir;
+        const head = { r: snake[0].r, c: snake[0].c };
+
+        switch (dir) {
+            case 'up':    head.r = (head.r - 1 + ROWS) % ROWS; break;
+            case 'down':  head.r = (head.r + 1) % ROWS; break;
+            case 'left':  head.c = (head.c - 1 + COLS) % COLS; break;
+            case 'right': head.c = (head.c + 1) % COLS; break;
+        }
+
+        if (snake.some(s => s.r === head.r && s.c === head.c)) { gameOver(); return; }
+
+        snake.unshift(head);
+
+        if (food && head.r === food.r && head.c === food.c) {
+            score++; scoreEl.textContent = `Рахунок: ${score}`;
+            spawnFood();
+        } else {
+            snake.pop();
+        }
+        render();
+    }
+
+    function gameOver() {
+        clearInterval(interval);
+        running = false;
+        startBtn.disabled = false;
+        pauseBtn.disabled = true;
+        alert(`Гра закінчена! Рахунок: ${score}`);
+    }
+
+    function start() {
+        if (running) return;
+        snake = [{ r: 3, c: 5 }];
+        dir = nextDir = 'right';
+        score = 0; scoreEl.textContent = 'Рахунок: 0';
+        spawnFood();
+        running = true; paused = false;
+        startBtn.disabled = true; pauseBtn.disabled = false; pauseBtn.textContent = 'Пауза';
+        render();
+        interval = setInterval(move, 400);
+    }
+
+    function togglePause() {
+        if (!running) return;
+        paused = !paused;
+        pauseBtn.textContent = paused ? 'Продовжити' : 'Пауза';
+    }
+
+    function reset() {
+        clearInterval(interval);
+        running = paused = false;
+        snake = []; food = null;
+        startBtn.disabled = false; pauseBtn.disabled = true;
+        render();
+        scoreEl.textContent = 'Рахунок: 0';
+    }
+
+    // === УПРАВЛЕНИЕ WASD ===
+    document.addEventListener('keydown', e => {
+        if (!running || paused) return;
+        const key = e.key.toLowerCase();
+    if (e.code === 'KeyW' && dir !== 'down')  nextDir = 'up';
+    if (e.code === 'KeyS' && dir !== 'up')    nextDir = 'down';
+    if (e.code === 'KeyA' && dir !== 'right') nextDir = 'left';
+    if (e.code === 'KeyD' && dir !== 'left')  nextDir = 'right';
+    });
+
+    startBtn.onclick = start;
+    pauseBtn.onclick = togglePause;
+    resetBtn.onclick = reset;
+
+    createTable();
+    render();
+</script>
+
+</body>
+</html>
